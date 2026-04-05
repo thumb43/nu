@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المنصة الإخبارية الفخمة | لوحة التحكم</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0f172a;
+            --text: #f8fafc;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --nav-bg: rgba(15, 23, 42, 0.9);
+            --border: rgba(255, 255, 255, 0.1);
+            --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="light"] {
+            --bg: #f1f5f9;
+            --text: #0f172a;
+            --card-bg: #ffffff;
+            --nav-bg: rgba(248, 250, 252, 0.9);
+            --border: rgba(0, 0, 0, 0.05);
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+            margin: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 100vh;
+        }
+
+        /* التنبيه الاحترافي */
+        #toast {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            padding: 14px 28px; border-radius: 12px; z-index: 10000;
+            font-weight: 700; color: white; transition: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: var(--shadow); backdrop-filter: blur(8px);
+        }
+
+        /* الملاحة (Navbar) */
+        nav {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 18px 8%; background: var(--nav-bg);
+            backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 1000;
+        }
+
+        .logo { font-size: 1.8rem; font-weight: 900; letter-spacing: -1px; }
+        .logo span { color: var(--primary); }
+
+        .nav-btns { display: flex; gap: 12px; }
+
+        button {
+            font-family: 'Cairo', sans-serif; font-weight: 700;
+            padding: 10px 24px; border-radius: 12px; cursor: pointer;
+            transition: all 0.3s ease; border: none;
+        }
+
+        .btn-theme { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
+        .btn-theme:hover { transform: rotate(15deg); }
+        
+        .btn-main { background: linear-gradient(135deg, var(--primary), #a855f7); color: white; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); }
+        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6); }
+
+        /* حاوية الأخبار */
+        .container { max-width: 1200px; margin: 60px auto; padding: 0 25px; }
+        
+        .news-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); 
+            gap: 35px; 
+        }
+
+        /* تصميم البطاقة الفخم */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(5px);
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-12px) scale(1.02);
+            border-color: var(--primary);
+            box-shadow: var(--shadow);
+        }
+
+        .card-img-wrapper { position: relative; width: 100%; height: 240px; overflow: hidden; }
+        .card img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; }
+        .card:hover img { transform: scale(1.1); }
+
+        .card-badge {
+            position: absolute; top: 15px; right: 15px;
+            background: rgba(0, 0, 0, 0.6); color: white;
+            padding: 4px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;
+            backdrop-filter: blur(4px);
+        }
+
+        .card-content { padding: 25px; }
+        .card-content p { margin: 0; line-height: 1.6; font-size: 1.1rem; font-weight: 600; }
+        
+        .card-footer {
+            margin-top: 20px; padding-top: 15px;
+            border-top: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.85rem; color: #94a3b8;
+        }
+
+        /* النافذة المنبثقة */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px);
+            z-index: 5000; justify-content: center; align-items: center;
+        }
+
+        .modal-box {
+            background: var(--bg); padding: 40px; border-radius: 30px;
+            width: 90%; max-width: 420px; border: 1px solid var(--border);
+            text-align: center; box-shadow: var(--shadow);
+        }
+
+        input {
+            width: 100%; padding: 14px; margin: 20px 0; border-radius: 12px;
+            border: 2px solid var(--border); background: var(--card-bg); color: var(--text);
+            box-sizing: border-box; font-family: 'Cairo'; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--primary); }
+
+        /* وضع فارغ */
+        .empty-state {
+            grid-column: 1 / -1; text-align: center; padding: 100px 0;
+            opacity: 0.5; font-size: 1.2rem;
+        }
+
+    </style>
+</head>
+<body data-theme="dark">
+
+    <div id="toast"></div>
+
+    <nav>
+        <div class="logo">LUXE<span>NEWS</span></div>
+        <div class="nav-btns">
+            <button class="btn-theme" onclick="toggleTheme()" id="themeBtn">🌙</button>
+            <button class="btn-main" onclick="toggleModal(true)">انضم للمشتركين</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="news-grid" id="newsGrid">
+            <div class="empty-state">لا توجد أخبار منشورة حالياً.. في انتظار الإبداع ✨</div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-box">
+            <h2 style="margin:0">كن أول من يعلم 💎</h2>
+            <p style="color:#94a3b8; font-size:0.9rem">سجل بريدك لتصلك تنبيهات الأخبار العاجلة</p>
+            <input type="email" id="emailInput" placeholder="name@example.com">
+            <button class="btn-main" style="width: 100%;" onclick="submitEmail()">تأكيد الاشتراك</button>
+            <p onclick="toggleModal(false)" style="margin-top:20px; cursor:pointer; opacity:0.6; font-weight:700">إغلاق</p>
+        </div>
+    </div>
+
+    <script>
+        // التوكنات الخاصة بك
+        const NEWS_BOT = '8785544998:AAFii_EP8RHn1UiRQ5ElXVdpvjQUwQSoDqs';
+        const EMAIL_BOT = '8610673164:AAEQXlapLjiFXULvKne2XACqNqm88akoFVE';
+        const CHAT_ID = 8294538151;
+
+        let newsItems = JSON.parse(localStorage.getItem('luxNews')) || [];
+        let botState = { waiting: false, lastUpdate: localStorage.getItem('lastUpd') || 0 };
+
+        function showToast(msg, type) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = type === 'ok' ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #ef4444, #dc2626)';
+            t.style.top = '30px';
+            setTimeout(() => t.style.top = '-100px', 3000);
+        }
+
+        function toggleTheme() {
+            const b = document.body;
+            const isDark = b.getAttribute('data-theme') === 'dark';
+            b.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            document.getElementById('themeBtn').innerText = isDark ? '☀️' : '🌙';
+        }
+
+        function toggleModal(s) { document.getElementById('modal').style.display = s ? 'flex' : 'none'; }
+
+        // --- محرك بوت الإيميلات (التوكن الثاني) ---
+        async function submitEmail() {
+            const email = document.getElementById('emailInput').value.trim();
+            if(!email.includes('@') || email.length < 5) return showToast("يرجى إدخال بريد صحيح ❌", "err");
+            
+            try {
+                await fetch(`https://api.telegram.org/bot${EMAIL_BOT}/sendMessage?chat_id=${CHAT_ID}&text=📧 مشترك جديد فخم:\nالبريد: ${email}`);
+                showToast("تم تسجيلك بنجاح! ✨", "ok");
+                toggleModal(false);
+                document.getElementById('emailInput').value = '';
+            } catch(e) { showToast("عذراً، فشل الاتصال", "err"); }
+        }
+
+        // --- محرك بوت الأخبار (التوكن الأول) ---
+        async function fetchUpdates() {
+            try {
+                const r = await fetch(`https://api.telegram.org/bot${NEWS_BOT}/getUpdates?offset=${Number(botState.lastUpdate)+1}`);
+                const d = await r.json();
+                
+                if(d.ok && d.result.length > 0) {
+                    for(let u of d.result) {
+                        botState.lastUpdate = u.update_id;
+                        localStorage.setItem('lastUpd', botState.lastUpdate);
+                        
+                        const m = u.message;
+                        if(!m || m.from.id !== CHAT_ID) continue;
+
+                        if(m.text === '/نشر_خبر_جديد') {
+                            botState.waiting = true;
+                            await fetch(`https://api.telegram.org/bot${NEWS_BOT}/sendMessage?chat_id=${CHAT_ID}&text=💎 النظام جاهز.. أرسل (الصورة + النص) الآن لرفعها للموقع.`);
+                        } 
+                        else if(botState.waiting && (m.text || m.caption)) {
+                            const id = Math.floor(1000 + Math.random() * 9000);
+                            const now = new Date().toLocaleDateString('ar-EG', {month:'long', day:'numeric'});
+                            
+                            const newPost = {
+                                id,
+                                text: m.text || m.caption,
+                                date: now,
+                                picId: m.photo ? m.photo[m.photo.length-1].file_id : null
+                            };
+
+                            newsItems.unshift(newPost);
+                            localStorage.setItem('luxNews', JSON.stringify(newsItems));
+                            botState.waiting = false;
+                            
+                            await fetch(`https://api.telegram.org/bot${NEWS_BOT}/sendMessage?chat_id=${CHAT_ID}&text=✅ تم النشر بالفخامة المطلوبة!\nمعرف الخبر: #${id}`);
+                            render();
+                        }
+                    }
+                }
+            } catch(e){}
+        }
+
+        function render() {
+            const grid = document.getElementById('newsGrid');
+            if(newsItems.length === 0) return;
+
+            grid.innerHTML = newsItems.map(item => `
+                <div class="card">
+                    <div class="card-img-wrapper">
+                        <div class="card-badge">حصري</div>
+                        ${item.picId ? `<img src="https://api.telegram.org/bot${NEWS_BOT}/getFile?file_id=${item.picId}" onerror="this.src='https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800'">` : `<img src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800">`}
+                    </div>
+                    <div class="card-content">
+                        <p>${item.text}</p>
+                        <div class="card-footer">
+                            <span>📅 ${item.date}</span>
+                            <span style="font-weight:700; color:var(--primary)">ID: #${item.id}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        render();
+        setInterval(fetchUpdates, 3000); // تحديث كل 3 ثوانٍ
+    </script>
+</body>
+</html>
