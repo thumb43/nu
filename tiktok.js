@@ -1,7 +1,6 @@
 const { Telegraf, Markup } = require('telegraf');
 const axios = require('axios');
 
-// قراءة التوكنات من بيئة GitHub Secrets للأمان
 const CONFIG = {
     TG_TOKEN: process.env.TG_TOKEN,
     ADMIN_ID: 8294538151,
@@ -10,7 +9,6 @@ const CONFIG = {
 
 const bot = new Telegraf(CONFIG.TG_TOKEN);
 
-// دالة جلب الترند من تيك توك
 async function fetchTikTokTrend() {
     try {
         const res = await axios.get('https://www.tikwm.com/api/feed/list?region=SA&count=1');
@@ -18,7 +16,6 @@ async function fetchTikTokTrend() {
     } catch (e) { return null; }
 }
 
-// دالة توليد الوصف والهاشتاقات
 async function generateCaption(title) {
     try {
         const aiRes = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_KEY}`, {
@@ -36,22 +33,32 @@ bot.command('hunt', async (ctx) => {
     if (!video) return ctx.reply("❌ لم أجد فيديوهات حالياً.");
 
     const caption = await generateCaption(video.title || "Trending Video");
-    const videoUrl = `https://www.tikwm.com${video.play}`;
+    
+    // تصحيح الرابط هنا: التأكد من عدم تكرار النطاق
+    let videoUrl = video.play;
+    if (!videoUrl.startsWith('http')) {
+        videoUrl = `https://www.tikwm.com${videoUrl}`;
+    }
 
-    await ctx.replyWithVideo(videoUrl, {
-        caption: `🔥 **تم الصيد!**\n\n📝 **الوصف:**\n${caption}`,
-        ...Markup.inlineKeyboard([
-            [Markup.button.url('📥 تحميل الفيديو', videoUrl)],
-            [Markup.button.callback('🔄 صيد آخر', 'hunt_again')]
-        ])
-    });
+    try {
+        await ctx.replyWithVideo(videoUrl, {
+            caption: `🔥 **تم الصيد!**\n\n📝 **الوصف:**\n${caption}`,
+            ...Markup.inlineKeyboard([
+                [Markup.button.url('📥 رابط الفيديو', videoUrl)],
+                [Markup.button.callback('🔄 صيد آخر', 'hunt_again')]
+            ])
+        });
+    } catch (error) {
+        ctx.reply("⚠️ عذراً، حدث خطأ في إرسال الفيديو. جرب مرة أخرى.");
+        console.log("Error details:", error.message);
+    }
 });
 
 bot.action('hunt_again', (ctx) => {
     ctx.answerCbQuery();
-    ctx.reply("🔎 جاري البحث...");
-    // إعادة تنفيذ أمر الصيد
+    ctx.reply("🔎 جاري البحث عن فيديو آخر...");
+    // يمكنك استدعاء دالة الصيد هنا
 });
 
 bot.launch();
-console.log("✅ البوت يعمل...");
+console.log("✅ البوت يعمل وجاهز للصيد...");
