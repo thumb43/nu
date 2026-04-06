@@ -1,16 +1,12 @@
 {
-  "name": "tiktok-hunter-bot",
+  "name": "tiktok-hunter",
   "version": "1.0.0",
-  "description": "TikTok Trend Hunter Bot",
   "main": "tiktok.js",
-  "scripts": {
-    "start": "node tiktok.js"
-  },
   "dependencies": {
     "telegraf": "^4.12.2",
     "axios": "^1.4.0"
   },
-  "author": "Yo",
-  "license": "ISC"
+  "scripts": {
+    "start": "node tiktok.js"
+  }
 }
-
