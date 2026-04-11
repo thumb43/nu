@@ -2,8 +2,27 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import yt_dlp
 import os
+from flask import Flask
+from threading import Thread
 
-# إعدادات البوت والقناة
+# ==========================================
+# إعدادات السيرفر الوهمي لضمان عدم توقف البوت
+# ==========================================
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is alive and running 24/7!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+# ==========================================
+
+# إعدادات البوت والقناة (تنبيه: احذر من مشاركة التوكن الخاص بك علناً)
 TOKEN = '8788224553:AAF7NORu-kU6mEjy8vz_3Bqtwjw4ZoESgF8'
 CHANNEL_USERNAME = '@zsewwi'
 bot = telebot.TeleBot(TOKEN)
@@ -108,6 +127,48 @@ def handle_message(message):
     if not check_membership(user_id):
         markup = InlineKeyboardMarkup(row_width=1)
         btn_join = InlineKeyboardButton(TEXTS[lang]['join_btn'], url=f"https://t.me/{CHANNEL_USERNAME[1:]}")
+        btn_check = InlineKeyboardButton(TEXTS[lang]['check_btn'], callback_data="check_join")
+        markup.add(btn_join, btn_check)
+        bot.send_message(message.chat.id, TEXTS[lang]['force_join'], reply_markup=markup)
+        return
+
+    url = message.text
+    if not url.startswith('http'):
+        bot.send_message(message.chat.id, TEXTS[lang]['send_link'])
+        return
+
+    msg = bot.send_message(message.chat.id, TEXTS[lang]['downloading'])
+    
+    # إعدادات yt-dlp لجلب الفيديو بأفضل جودة تحت 50MB
+    ydl_opts = {
+        'format': 'best[filesize<50M]/best',
+        'outtmpl': f'video_{user_id}.%(ext)s',
+        'quiet': True,
+        'cookiefile': 'cookies.txt', # اختياري إذا أردت دعم مواقع تحتاج تسجيل دخول
+    }
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            
+        with open(filename, 'rb') as video:
+            bot.send_video(message.chat.id, video, caption="Enjoy! 🔥")
+            
+        # حذف الفيديو بعد الإرسال لتوفير المساحة
+        os.remove(filename)
+        bot.delete_message(message.chat.id, msg.message_id)
+        
+    except Exception as e:
+        bot.edit_message_text(TEXTS[lang]['error'], chat_id=message.chat.id, message_id=msg.message_id)
+        print(f"Error: {e}")
+
+# تشغيل البوت
+if __name__ == "__main__":
+    print("Starting Keep-Alive server...")
+    keep_alive() # تشغيل السيرفر لكي لا ينام البوت
+    print("Bot is running...")
+    bot.infinity_polling()
         btn_check = InlineKeyboardButton(TEXTS[lang]['check_btn'], callback_data="check_join")
         markup.add(btn_join, btn_check)
         bot.send_message(message.chat.id, TEXTS[lang]['force_join'], reply_markup=markup)
