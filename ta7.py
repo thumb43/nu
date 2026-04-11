@@ -5,14 +5,12 @@ import os
 from flask import Flask
 from threading import Thread
 
-# ==========================================
-# إعدادات السيرفر الوهمي لضمان عدم توقف البوت
-# ==========================================
+# --- إعدادات السيرفر لإبقاء البوت حياً ---
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is alive and running 24/7!"
+    return "The Luxury Downloader Bot is Running 24/7!"
 
 def run():
     app.run(host='0.0.0.0', port=8080)
@@ -20,192 +18,133 @@ def run():
 def keep_alive():
     t = Thread(target=run)
     t.start()
-# ==========================================
 
-# إعدادات البوت والقناة (تنبيه: احذر من مشاركة التوكن الخاص بك علناً)
-TOKEN = '8788224553:AAF7NORu-kU6mEjy8vz_3Bqtwjw4ZoESgF8'
+# --- إعدادات البوت والقناة (الحماية من التسريب) ---
+# ملاحظة: قم بوضع التوكن في إعدادات الاستضافة (Render) تحت اسم BOT_TOKEN
+TOKEN = os.environ.get('BOT_TOKEN') 
 CHANNEL_USERNAME = '@zsewwi'
 bot = telebot.TeleBot(TOKEN)
 
-# قاموس لتخزين لغة كل مستخدم
-user_languages = {}
-
-# قاموس النصوص المترجمة لتوفير واجهة فخمة
+# قاموس اللغات والنصوص
 TEXTS = {
     'ar': {
         'force_join': "تمهل عزيزي! ✋\nيجب عليك الانضمام أولاً إلى قناتنا لتتمكن من استخدام البوت الاستثنائي الخاص بنا.",
         'join_btn': "انضم إلى القناة من هنا 📥",
-        'check_btn': "تحقق من الانضمام ✅",
-        'send_link': "مرحباً بك في البوت الأسطوري! 🚀\nالمرجو إرسال رابط الفيديو الذي تريد تحميله من أي موقع (يوتيوب، إنستغرام، تيك توك...):",
+        'check_btn': "تم الانضمام ✅",
+        'send_link': "مرحباً بك في البوت الأسطوري! 🚀\nالمرجو إرسال رابط الفيديو الذي تريد تحميله من أي موقع (إنستغرام، تيك توك، يوتيوب...):",
         'downloading': "جاري معالجة الرابط وتحميل الفيديو بأفضل جودة... ⏳\nالرجاء الانتظار قليلاً.",
-        'error': "عذراً، حدث خطأ أثناء التحميل. تأكد من الرابط أو حاول مجدداً لاحقاً.",
-        'not_joined': "عذراً، لم تقم بالانضمام بعد! انضم ثم اضغط على تحقق."
+        'error': "عذراً، حدث خطأ! تأكد من الرابط أو أن حجم الفيديو لا يتجاوز 50MB.",
+        'not_joined': "عذراً عزيزي، لم تنضم بعد! انضم واضغط على التاكيد."
     },
     'en': {
         'force_join': "Hold on dear! ✋\nYou must join our channel first to use our premium bot.",
-        'join_btn': "Join Channel Here 📥",
-        'check_btn': "Check Join ✅",
-        'send_link': "Welcome to the Epic Bot! 🚀\nPlease send the video link you want to download (YouTube, IG, TikTok...):",
-        'downloading': "Processing and downloading in best quality... ⏳\nPlease wait.",
-        'error': "Sorry, an error occurred. Check the link or try again later.",
-        'not_joined': "You haven't joined yet! Please join and click check."
+        'join_btn': "Join Channel 📥",
+        'check_btn': "I joined ✅",
+        'send_link': "Welcome! 🚀\nPlease send the video link (IG, TikTok, YouTube...):",
+        'downloading': "Processing... ⏳\nPlease wait.",
+        'error': "Error! Check the link or file size (Max 50MB).",
+        'not_joined': "You haven't joined yet!"
     },
     'fr': {
-        'force_join': "Attendez cher! ✋\nVous devez d'abord rejoindre notre canal pour utiliser le bot.",
-        'join_btn': "Rejoindre le canal 📥",
-        'check_btn': "Vérifier ✅",
-        'send_link': "Bienvenue sur le Bot Épique ! 🚀\nVeuillez envoyer le lien de la vidéo (YouTube, IG, TikTok...):",
-        'downloading': "Téléchargement en cours... ⏳\nVeuillez patienter.",
-        'error': "Une erreur est survenue. Vérifiez le lien.",
-        'not_joined': "Vous n'avez pas encore rejoint! Rejoignez puis vérifiez."
+        'force_join': "Attendez cher! ✋\nRejoignez notre canal pour utiliser le bot.",
+        'join_btn': "Rejoindre 📥",
+        'check_btn': "C'est fait ✅",
+        'send_link': "Bienvenue! 🚀\nEnvoyez le lien de la vidéo:",
+        'downloading': "Téléchargement... ⏳",
+        'error': "Erreur! Vérifiez le lien.",
+        'not_joined': "Vous n'avez pas encore rejoint!"
     },
     'ru': {
-        'force_join': "Подождите, дорогой! ✋\nВы должны сначала присоединиться к нашему каналу.",
-        'join_btn': "Присоединиться к каналу 📥",
-        'check_btn': "Проверить ✅",
-        'send_link': "Добро пожаловать в Эпический Бот! 🚀\nОтправьте ссылку на видео:",
-        'downloading': "Загрузка видео... ⏳\nПожалуйста, подождите.",
-        'error': "Произошла ошибка. Проверьте ссылку.",
-        'not_joined': "Вы еще не присоединились! Сделайте это и нажмите кнопку проверки."
+        'force_join': "Подождите! ✋\nВступите в наш канал, чтобы использовать бот.",
+        'join_btn': "Вступить 📥",
+        'check_btn': "Я вступил ✅",
+        'send_link': "Добро пожаловать! 🚀\nОтправьте ссылку на видео:",
+        'downloading': "Загрузка... ⏳",
+        'error': "Ошибка! Проверьте ссылку.",
+        'not_joined': "Вы еще не вступили!"
     }
 }
 
-# دالة التحقق من الاشتراك
+user_languages = {}
+
 def check_membership(user_id):
     try:
         member = bot.get_chat_member(CHANNEL_USERNAME, user_id)
-        if member.status in ['member', 'administrator', 'creator']:
-            return True
-        return False
-    except Exception as e:
+        return member.status in ['member', 'administrator', 'creator']
+    except:
         return False
 
-# رسالة البدء واختيار اللغة
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = InlineKeyboardMarkup(row_width=2)
-    btn_ar = InlineKeyboardButton("🇲🇦 العربية", callback_data="lang_ar")
-    btn_en = InlineKeyboardButton("🇺🇸 English", callback_data="lang_en")
-    btn_fr = InlineKeyboardButton("🇫🇷 Français", callback_data="lang_fr")
-    btn_ru = InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")
-    markup.add(btn_ar, btn_en, btn_fr, btn_ru)
-    
-    bot.send_message(message.chat.id, "Please select your language / المرجو اختيار لغتك:", reply_markup=markup)
+    markup.add(
+        InlineKeyboardButton("🇲🇦 العربية", callback_data="lang_ar"),
+        InlineKeyboardButton("🇺🇸 English", callback_data="lang_en"),
+        InlineKeyboardButton("🇫🇷 Français", callback_data="lang_fr"),
+        InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")
+    )
+    bot.send_message(message.chat.id, "Select Language / اختر اللغة:", reply_markup=markup)
 
-# التعامل مع أزرار اللغة والتحقق
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     user_id = call.from_user.id
-    
     if call.data.startswith('lang_'):
         lang = call.data.split('_')[1]
         user_languages[user_id] = lang
-        
         if not check_membership(user_id):
-            markup = InlineKeyboardMarkup(row_width=1)
-            btn_join = InlineKeyboardButton(TEXTS[lang]['join_btn'], url=f"https://t.me/{CHANNEL_USERNAME[1:]}")
-            btn_check = InlineKeyboardButton(TEXTS[lang]['check_btn'], callback_data="check_join")
-            markup.add(btn_join, btn_check)
-            bot.edit_message_text(TEXTS[lang]['force_join'], chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup)
+            markup = InlineKeyboardMarkup().add(
+                InlineKeyboardButton(TEXTS[lang]['join_btn'], url=f"https://t.me/{CHANNEL_USERNAME[1:]}"),
+                InlineKeyboardButton(TEXTS[lang]['check_btn'], callback_data="check_now")
+            )
+            bot.edit_message_text(TEXTS[lang]['force_join'], call.message.chat.id, call.message.message_id, reply_markup=markup)
         else:
-            bot.edit_message_text(TEXTS[lang]['send_link'], chat_id=call.message.chat.id, message_id=call.message.message_id)
-            
-    elif call.data == 'check_join':
+            bot.edit_message_text(TEXTS[lang]['send_link'], call.message.chat.id, call.message.message_id)
+    
+    elif call.data == "check_now":
         lang = user_languages.get(user_id, 'ar')
         if check_membership(user_id):
-            bot.edit_message_text(TEXTS[lang]['send_link'], chat_id=call.message.chat.id, message_id=call.message.message_id)
+            bot.edit_message_text(TEXTS[lang]['send_link'], call.message.chat.id, call.message.message_id)
         else:
             bot.answer_callback_query(call.id, TEXTS[lang]['not_joined'], show_alert=True)
 
-# التعامل مع الروابط وتحميل الفيديوهات
 @bot.message_handler(func=lambda message: True)
-def handle_message(message):
+def handle_download(message):
     user_id = message.from_user.id
     lang = user_languages.get(user_id, 'ar')
     
-    # التحقق مرة أخرى من الاشتراك قبل التحميل
     if not check_membership(user_id):
-        markup = InlineKeyboardMarkup(row_width=1)
-        btn_join = InlineKeyboardButton(TEXTS[lang]['join_btn'], url=f"https://t.me/{CHANNEL_USERNAME[1:]}")
-        btn_check = InlineKeyboardButton(TEXTS[lang]['check_btn'], callback_data="check_join")
-        markup.add(btn_join, btn_check)
-        bot.send_message(message.chat.id, TEXTS[lang]['force_join'], reply_markup=markup)
+        send_welcome(message)
         return
 
     url = message.text
     if not url.startswith('http'):
-        bot.send_message(message.chat.id, TEXTS[lang]['send_link'])
+        bot.reply_to(message, TEXTS[lang]['send_link'])
         return
 
-    msg = bot.send_message(message.chat.id, TEXTS[lang]['downloading'])
+    status_msg = bot.reply_to(message, TEXTS[lang]['downloading'])
     
-    # إعدادات yt-dlp لجلب الفيديو بأفضل جودة تحت 50MB
+    # إعدادات التحميل (أفضل جودة ممكنة تحت 50 ميجا لتيليجرام)
     ydl_opts = {
         'format': 'best[filesize<50M]/best',
-        'outtmpl': f'video_{user_id}.%(ext)s',
+        'outtmpl': f'vid_{user_id}.%(ext)s',
         'quiet': True,
-        'cookiefile': 'cookies.txt', # اختياري إذا أردت دعم مواقع تحتاج تسجيل دخول
+        'no_warnings': True
     }
-    
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
         with open(filename, 'rb') as video:
-            bot.send_video(message.chat.id, video, caption="Enjoy! 🔥")
-            
-        # حذف الفيديو بعد الإرسال لتوفير المساحة
-        os.remove(filename)
-        bot.delete_message(message.chat.id, msg.message_id)
+            bot.send_video(message.chat.id, video, caption="Done by @zsewwi 🔥")
         
-    except Exception as e:
-        bot.edit_message_text(TEXTS[lang]['error'], chat_id=message.chat.id, message_id=msg.message_id)
-        print(f"Error: {e}")
-
-# تشغيل البوت
-if __name__ == "__main__":
-    print("Starting Keep-Alive server...")
-    keep_alive() # تشغيل السيرفر لكي لا ينام البوت
-    print("Bot is running...")
-    bot.infinity_polling()
-        btn_check = InlineKeyboardButton(TEXTS[lang]['check_btn'], callback_data="check_join")
-        markup.add(btn_join, btn_check)
-        bot.send_message(message.chat.id, TEXTS[lang]['force_join'], reply_markup=markup)
-        return
-
-    url = message.text
-    if not url.startswith('http'):
-        bot.send_message(message.chat.id, TEXTS[lang]['send_link'])
-        return
-
-    msg = bot.send_message(message.chat.id, TEXTS[lang]['downloading'])
-    
-    # إعدادات yt-dlp لجلب الفيديو بأفضل جودة تحت 50MB
-    ydl_opts = {
-        'format': 'best[filesize<50M]/best',
-        'outtmpl': f'video_{user_id}.%(ext)s',
-        'quiet': True,
-        'cookiefile': 'cookies.txt', # اختياري إذا أردت دعم مواقع تحتاج تسجيل دخول
-    }
-    
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            
-        with open(filename, 'rb') as video:
-            bot.send_video(message.chat.id, video, caption="Enjoy! 🔥")
-            
-        # حذف الفيديو بعد الإرسال لتوفير المساحة
         os.remove(filename)
-        bot.delete_message(message.chat.id, msg.message_id)
-        
+        bot.delete_message(message.chat.id, status_msg.message_id)
     except Exception as e:
-        bot.edit_message_text(TEXTS[lang]['error'], chat_id=message.chat.id, message_id=msg.message_id)
-        print(f"Error: {e}")
+        bot.edit_message_text(TEXTS[lang]['error'], message.chat.id, status_msg.message_id)
 
-# تشغيل البوت
 if __name__ == "__main__":
-    print("Bot is running...")
+    keep_alive()
+    print("Bot is Starting...")
     bot.infinity_polling()
