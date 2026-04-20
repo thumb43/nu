@@ -7,6 +7,20 @@ const {
 
 const { Boom } = require("@hapi/boom");
 const autoChatPlugin = require("./plugins/auto_chat");
+const readline = require("readline");
+
+function question(query) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  return new Promise((resolve) => {
+    rl.question(query, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info");
@@ -15,15 +29,21 @@ async function startBot() {
   const conn = makeWASocket({
     version,
     auth: state,
-    printQRInTerminal: true,
+    printQRInTerminal: false,
     browser: ["WhatsApp Bot", "Chrome", "1.0.0"],
   });
 
+  // طلب Pairing Code
+  if (!state.creds.registered) {
+    const phoneNumber = await question("حط رقم هاتفك بالصيغة الدولية (مثال: 212XXXXXXXXX): ");
+    const code = await conn.requestPairingCode(phoneNumber.trim());
+    console.log(`\n✅ كود الربط ديالك هو: ${code}\n`);
+    console.log("مشي لواتساب ← الأجهزة المرتبطة ← ربط جهاز ← ربط برقم الهاتف\n");
+  }
+
   conn.ev.on("creds.update", saveCreds);
 
-  conn.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
-    if (qr) console.log("امسح الـ QR Code بواتساب ديالك 👆");
-
+  conn.ev.on("connection.update", ({ connection, lastDisconnect }) => {
     if (connection === "close") {
       const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
       if (code !== DisconnectReason.loggedOut) {
@@ -33,9 +53,8 @@ async function startBot() {
         console.log("تم تسجيل الخروج — امسح auth_info وأعد التشغيل");
       }
     }
-
     if (connection === "open") {
-      console.log("✅ البوت شغال!");
+      console.log("✅ البوت شغال ومتصل!");
     }
   });
 
