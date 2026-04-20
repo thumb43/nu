@@ -33,17 +33,23 @@ async function startBot() {
     browser: ["WhatsApp Bot", "Chrome", "1.0.0"],
   });
 
-  // طلب Pairing Code
-  if (!state.creds.registered) {
-    const phoneNumber = await question("حط رقم هاتفك بالصيغة الدولية (مثال: 212XXXXXXXXX): ");
-    const code = await conn.requestPairingCode(phoneNumber.trim());
-    console.log(`\n✅ كود الربط ديالك هو: ${code}\n`);
-    console.log("مشي لواتساب ← الأجهزة المرتبطة ← ربط جهاز ← ربط برقم الهاتف\n");
-  }
-
   conn.ev.on("creds.update", saveCreds);
 
-  conn.ev.on("connection.update", ({ connection, lastDisconnect }) => {
+  // ⚠️ خاصنا ننتظرو حتى يتصاوب الاتصال أولاً
+  conn.ev.on("connection.update", async ({ connection, lastDisconnect, qr, isNewLogin }) => {
+
+    // ملي يكون غير مسجل — نطلبو رقم الهاتف
+    if (qr && !state.creds.registered) {
+      const phoneNumber = await question("حط رقم هاتفك بالصيغة الدولية (مثال: 212XXXXXXXXX): ");
+      try {
+        const code = await conn.requestPairingCode(phoneNumber.trim());
+        console.log(`\n✅ كود الربط: ${code}\n`);
+        console.log("مشي لواتساب ← الأجهزة المرتبطة ← ربط جهاز ← ربط برقم الهاتف\n");
+      } catch (err) {
+        console.error("خطأ في طلب الكود:", err.message);
+      }
+    }
+
     if (connection === "close") {
       const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
       if (code !== DisconnectReason.loggedOut) {
@@ -53,6 +59,7 @@ async function startBot() {
         console.log("تم تسجيل الخروج — امسح auth_info وأعد التشغيل");
       }
     }
+
     if (connection === "open") {
       console.log("✅ البوت شغال ومتصل!");
     }
