@@ -1,151 +1,124 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs').promises;
+const path = require('path');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// إعداد Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-const STORE_PATH = path.resolve(__dirname, "../data/chat_sessions.json");
-
-function loadStore() {
-  try {
-    if (fs.existsSync(STORE_PATH)) {
-      return JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
+const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: {
+        parts: [{ 
+            text: "أنت صديق رقمي تتحدث بالدارجة المغربية فقط. أسلوبك مرح، فكاهي، وودود كإنسان حقيقي. لا تذكر أبداً أنك ذكاء اصطناعي أو روبوت أو لغة نموذجية. إذا سألك أحد عن هويتك، قل دائماً 'أنا صديقك الرقمي'. استخدم الإيموجي بشكل طبيعي وتفاعل بأسلوب مغربي شعبي ومحترم." 
+        }]
     }
-  } catch {}
-  return {};
-}
+});
 
-function saveStore(store) {
-  try {
-    fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
-    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
-  } catch (e) {
-    console.error("فشل حفظ الجلسات:", e.message);
-  }
-}
+// مسار ملف حفظ البيانات
+const DATA_FILE = path.join(__dirname, '..', 'users_data.json');
 
-const sessionStore = loadStore();
-const TWO_HOURS = 2 * 60 * 60 * 1000;
-const MAX_HISTORY = 10;
-const RATE_LIMIT_MS = 3000;
-const lastRequestTime = {};
-
-const SYSTEM_PROMPT = `
-أنت "صديقك الرقمي"، مساعد عبر واتساب.
-
-[هويتك الصارمة]:
-- تحدث دائماً كإنسان مغربي حقيقي بالدارجة المغربية اللطيفة والمرحة.
-- استخدم الإيموجي بشكل طبيعي وغير مبالغ فيه.
-- لا تذكر أبداً أنك ذكاء اصطناعي أو روبوت أو نموذج لغوي.
-- إذا سألك أحد قل فقط: أنا صديقك الرقمي 😄
-- كن اجتماعياً، افتح مواضيع جانبية، واسأل عن أحوال الشخص.
-
-[خدماتك]:
-📥 تحميل الفيديوهات من يوتيوب وتيك توك وإنستغرام وفيسبوك
-🎵 تحميل الموسيقى باسم الأغنية أو رابط مباشر
-🎨 تحويل الصور إلى ستيكرز واتساب
-🎮 ألعاب وتحديات ذكاء
-🧠 الإجابة على أي سؤال
-
-[أسلوب الرد]:
-- جمل قصيرة وطبيعية كأنك تكتب على هاتفك
-- تجنب الردود الطويلة ما لم يطلب المستخدم شرحاً
-- إذا أرسل رابطاً اسأله عن نوع التحميل
-- إذا أرسل صوت أو فيديو اعرض عليه خيارات التحويل
-`;
-
-const SERVICES_LIST = `
-🌟 مرحباً بيك من جديد! أنا هنا دائماً 😄
-إيلا كنت محتاج شي حاجة هاهي خدماتي:
-
-📥 *تحميل الفيديوهات* — ابعثلي رابط من يوتيوب أو تيك توك أو إنستغرام
-🎵 *تحميل الموسيقى* — اسم الأغنية أو رابط مباشر
-🎨 *صناعة ستيكرز* — ابعثلي أي صورة وسأحولها لملصق 🔥
-🎮 *ألعاب وذكاء* — اكتب games للبدء 😏
-🧠 *ذكاء اصطناعي* — أي سؤال عندك فقط اسألني
-
-واش فيه شي خدمتك اليوم؟ 👇
-`;
-
-function isRateLimited(sender) {
-  const now = Date.now();
-  if (lastRequestTime[sender] && now - lastRequestTime[sender] < RATE_LIMIT_MS) {
-    return true;
-  }
-  lastRequestTime[sender] = now;
-  return false;
-}
-
-module.exports = {
-  name: "auto_chat",
-  async run(conn, mek, m, { text, from, sender, isMedia, mtype }) {
-    const userText = text?.trim();
-    if (!userText && !isMedia) return;
-
-    if (isRateLimited(sender)) {
-      return await conn.sendMessage(
-        from,
-        { text: "عاود بعد ثانية 😄" },
-        { quoted: mek }
-      );
-    }
-
-    if (!sessionStore[sender]) {
-      sessionStore[sender] = { lastTime: 0, history: [] };
-    }
-
-    const session = sessionStore[sender];
-    const now = Date.now();
-    const showServices = session.lastTime === 0 || now - session.lastTime > TWO_HOURS;
-    session.lastTime = now;
-
-    let inputText = userText;
-    if (isMedia) {
-      const mediaType =
-        mtype === "audioMessage" ? "مقطع صوتي" :
-        mtype === "videoMessage" ? "مقطع فيديو" : "ملف وسائط";
-      inputText = `[أرسل المستخدم ${mediaType}] ${userText || ""}`;
-    }
-
-    if (!inputText) return;
-
+// دوال مساعدة لقراءة وكتابة ملف JSON
+async function loadUserData() {
     try {
-      const systemInstruction = showServices
-        ? `${SYSTEM_PROMPT}\n\n[تعليمات]: ابدأ ردك بهذا النص:\n${SERVICES_LIST}`
-        : SYSTEM_PROMPT;
+        const data = await fs.readFile(DATA_FILE, 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        return {}; // إذا لم يكن الملف موجوداً، أرجع كائن فارغ
+    }
+}
 
-      const history = (session.history || [])
-        .slice(-MAX_HISTORY)
-        .map(h => ({ role: h.role, parts: [{ text: h.text }] }));
+async function saveUserData(data) {
+    try {
+        await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error('[ERROR] خطأ في حفظ بيانات المستخدم:', error);
+    }
+}
 
-      const chat = model.startChat({
-        systemInstruction,
-        history,
-        generationConfig: { maxOutputTokens: 512, temperature: 0.85 },
-      });
+// الدالة الرئيسية لمعالجة الرسائل
+async function handleChat(client, msg) {
+    const userId = msg.from;
+    const usersData = await loadUserData();
+    const now = Date.now();
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
-      const result = await chat.sendMessage(inputText);
-      const response = result.response.text().trim();
-      if (!response) throw new Error("رد فارغ");
+    // إنشاء ملف للمستخدم إذا كان يراسلنا لأول مرة
+    if (!usersData[userId]) {
+        usersData[userId] = {
+            lastMessageTime: 0,
+            history: []
+        };
+    }
 
-      session.history.push(
-        { role: "user", text: inputText },
-        { role: "model", text: response }
-      );
-      if (session.history.length > MAX_HISTORY * 2) {
-        session.history = session.history.slice(-MAX_HISTORY * 2);
-      }
-      saveStore(sessionStore);
+    const userData = usersData[userId];
+    const timeSinceLastMessage = now - userData.lastMessageTime;
+    
+    // تحديث وقت آخر رسالة
+    userData.lastMessageTime = now;
 
-      await conn.sendMessage(from, { text: response }, { quoted: mek });
+    // ==========================================
+    // 1. معالجة الوسائط (الصوتيات والفيديوهات)
+    // ==========================================
+    if (msg.hasMedia) {
+        const media = await msg.downloadMedia();
+        if (media && (media.mimetype.startsWith('audio/') || media.mimetype.startsWith('video/'))) {
+            await msg.reply("شفتك صيفطتي ليا أوديو ولا فيديو! 🎬 واش بغيتي نحولو ليك لشي صيغة أخرى؟ (هادي ميزة غنزيدها قريباً 😉)");
+            await saveUserData(usersData);
+            return;
+        }
+    }
+
+    // ==========================================
+    // 2. منطق الساعتين (الترحيب وقائمة الخدمات)
+    // ==========================================
+    if (timeSinceLastMessage > TWO_HOURS_MS) {
+        const welcomeMessage = `🌟 مرحباً بيك هاهي خدماتي:\n\n📥 تحميل الفيديوهات يوتيوب وتيك توك وإنستغرام\n🎵 تحميل الموسيقى\n🎨 صناعة الستيكرز\n🎮 ألعاب وتحديات\n🧠 الإجابة على أي سؤال`;
+        await msg.reply(welcomeMessage);
+        
+        // تفريغ السياق القديم بعد مرور ساعتين لبدء محادثة جديدة ونظيفة
+        userData.history = [];
+        await saveUserData(usersData);
+        return;
+    }
+
+    // ==========================================
+    // 3. الدردشة الطبيعية مع الذكاء الاصطناعي
+    // ==========================================
+    try {
+        // إعداد سياق المحادثة لنموذج Gemini
+        const chatHistory = userData.history.map(h => ({
+            role: h.role,
+            parts: [{ text: h.text }]
+        }));
+
+        const chat = model.startChat({
+            history: chatHistory
+        });
+
+        // إرسال رسالة المستخدم للذكاء الاصطناعي (إذا أرسل صورة فقط بدون نص، نعوضها بـ "صورة")
+        const userText = msg.body || (msg.hasMedia ? "صيفطت ليك تصويرة" : "سلام");
+        const result = await chat.sendMessage(userText);
+        const responseText = result.response.text();
+
+        // الرد على المستخدم
+        await msg.reply(responseText);
+
+        // ==========================================
+        // 4. تحديث سياق المحادثة (حفظ آخر 10 رسائل)
+        // ==========================================
+        userData.history.push({ role: 'user', text: userText });
+        userData.history.push({ role: 'model', text: responseText });
+
+        // الرسالة الواحدة تتكون من طلب ورد (2)، لذا للحفاظ على 10 رسائل نحتفظ بآخر 20 عنصر
+        if (userData.history.length > 20) {
+            userData.history = userData.history.slice(-20);
+        }
+
+        await saveUserData(usersData);
 
     } catch (error) {
-      console.error("خطأ:", error.message);
-      const msg = error.message?.includes("quota")
-        ? "سمح ليا عندي شوية ضغط دابا 🙏"
-        : "كاين شي مشكل صغير عاود صيفط ليا 😅";
-      await conn.sendMessage(from, { text: msg }, { quoted: mek });
+        console.error('[GEMINI ERROR] حدث خطأ في الذكاء الاصطناعي:', error);
+        await msg.reply("سمح ليا أخويا/ختي، كاين شي مشكل تقني دابا، عاود صيفط ليا من بعد شوية. 😅");
     }
-  },
-};
+}
+
+module.exports = { handleChat };
