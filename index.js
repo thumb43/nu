@@ -1,94 +1,80 @@
-const {
-  default: makeWASocket,
-  useMultiFileAuthState,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-} = require("@whiskeysockets/baileys");
+const express = require('express');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const { handleChat } = require('./plugins/auto_chat');
 
-const { Boom } = require("@hapi/boom");
-const autoChatPlugin = require("./plugins/auto_chat");
-const readline = require("readline");
+// ==========================================
+// 1. HTTP Server for UptimeRobot (Port 3000)
+// ==========================================
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-function question(query) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  return new Promise((resolve) => {
-    rl.question(query, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
-}
+app.get('/', (req, res) => {
+    res.send('البوت شغال 100% 🟢');
+});
 
-async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState("auth_info");
-  const { version } = await fetchLatestBaileysVersion();
+app.listen(PORT, () => {
+    console.log(`[SERVER] HTTP Server running on port ${PORT} for UptimeRobot.`);
+});
 
-  const conn = makeWASocket({
-    version,
-    auth: state,
-    printQRInTerminal: false,
-    browser: ["WhatsApp Bot", "Chrome", "1.0.0"],
-  });
-
-  conn.ev.on("creds.update", saveCreds);
-
-  // ⚠️ خاصنا ننتظرو حتى يتصاوب الاتصال أولاً
-  conn.ev.on("connection.update", async ({ connection, lastDisconnect, qr, isNewLogin }) => {
-
-    // ملي يكون غير مسجل — نطلبو رقم الهاتف
-    if (qr && !state.creds.registered) {
-      const phoneNumber = await question("حط رقم هاتفك بالصيغة الدولية (مثال: 212XXXXXXXXX): ");
-      try {
-        const code = await conn.requestPairingCode(phoneNumber.trim());
-        console.log(`\n✅ كود الربط: ${code}\n`);
-        console.log("مشي لواتساب ← الأجهزة المرتبطة ← ربط جهاز ← ربط برقم الهاتف\n");
-      } catch (err) {
-        console.error("خطأ في طلب الكود:", err.message);
-      }
+// ==========================================
+// 2. WhatsApp Client Initialization
+// ==========================================
+const client = new Client({
+    authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-gpu'
+        ]
     }
+});
 
-    if (connection === "close") {
-      const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
-      if (code !== DisconnectReason.loggedOut) {
-        console.log("إعادة الاتصال...");
-        startBot();
-      } else {
-        console.log("تم تسجيل الخروج — امسح auth_info وأعد التشغيل");
-      }
-    }
+// Rate Limiting Map
+const rateLimits = new Map();
 
-    if (connection === "open") {
-      console.log("✅ البوت شغال ومتصل!");
-    }
-  });
+client.on('qr', (qr) => {
+    console.log('[QR CODE] قم بمسح الكود التالي لربط الواتساب:');
+    qrcode.generate(qr, { small: true });
+});
 
-  conn.ev.on("messages.upsert", async ({ messages, type }) => {
-    if (type !== "notify") return;
-    const mek = messages[0];
-    if (!mek?.message || mek.key.fromMe) return;
+client.on('ready', () => {
+    console.log('[WHATSAPP] تم الاتصال بنجاح! البوت الآن جاهز للعمل.');
+});
 
-    const from = mek.key.remoteJid;
-    const sender = mek.key.participant || from;
-    const mtype = Object.keys(mek.message)[0];
-    const text =
-      mek.message?.conversation ||
-      mek.message?.extendedTextMessage?.text ||
-      mek.message?.imageMessage?.caption ||
-      mek.message?.videoMessage?.caption ||
-      "";
-    const isMedia = ["audioMessage", "videoMessage", "imageMessage"].includes(mtype);
-
+client.on('message', async (msg) => {
     try {
-      await autoChatPlugin.run(conn, mek, mek, {
-        text, from, sender, isMedia, mtype,
-      });
-    } catch (err) {
-      console.error("خطأ:", err.message);
-    }
-  });
-}
+        // تجاهل رسائل الجروبات ورسائل البوت نفسه
+        if (msg.fromMe || msg.isGroupMsg) return;
 
-startBot();
+        const userId = msg.from;
+        const now = Date.now();
+
+        // ==========================================
+        // 3. Rate Limiting (3 Seconds)
+        // ==========================================
+        if (rateLimits.has(userId)) {
+            const lastMessageTime = rateLimits.get(userId);
+            if (now - lastMessageTime < 3000) {
+                console.log(`[RATE LIMIT] تم تجاهل رسالة من ${userId} (أقل من 3 ثوانٍ)`);
+                return; 
+            }
+        }
+        rateLimits.set(userId, now);
+
+        // توجيه الرسالة إلى ملف auto_chat.js
+        await handleChat(client, msg);
+
+    } catch (error) {
+        console.error('[ERROR] حدث خطأ في معالجة الرسالة الأساسية:', error);
+    }
+});
+
+client.initialize();
